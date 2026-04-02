@@ -1,0 +1,5 @@
+{
+  "name": "MedQuick",
+  "description": "A modern healthcare platform for instant doctor appointments and emergency ambulance services.",
+  "requestFramePermissions": ["geolocation"]
+}
