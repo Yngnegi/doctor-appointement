@@ -19,7 +19,11 @@ import {
   MessageSquare,
   Moon,
   Sun,
-  Bell
+  Bell,
+  Check,
+  Send,
+  Plus,
+  Minus
 } from 'lucide-react';
 import { cn } from './lib/utils';
 
@@ -249,14 +253,21 @@ const FindDoctorsPage = () => {
 
   useEffect(() => {
     fetch('/api/doctors')
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error('Failed to fetch doctors');
+        return res.json();
+      })
       .then(data => {
         setDoctors(data);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error(err);
         setLoading(false);
       });
   }, []);
 
-  const specialties = ['All', 'Cardiologist', 'Dentist', 'Dermatologist', 'Neurologist', 'Pediatrician'];
+  const specialties = ['All', 'Cardiologist', 'Dentist', 'Dermatologist', 'Neurologist', 'Pediatrician', 'Orthopedic', 'Gynecologist', 'Ophthalmologist'];
 
   const filteredDoctors = doctors.filter(doc => {
     const matchesSearch = doc.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -358,7 +369,13 @@ const BookingPage = () => {
 
   useEffect(() => {
     // In a real app, we'd use the ID from params
-    fetch('/api/doctors/1').then(res => res.json()).then(setDoctor);
+    fetch('/api/doctors/1')
+      .then(res => {
+        if (!res.ok) throw new Error('Failed to fetch doctor');
+        return res.json();
+      })
+      .then(setDoctor)
+      .catch(err => console.error(err));
   }, []);
 
   const handleBooking = (e: React.FormEvent) => {
@@ -375,9 +392,18 @@ const BookingPage = () => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(booking)
-    }).then(() => {
+    })
+    .then(res => {
+      if (!res.ok) throw new Error('Failed to book appointment');
+      return res.json();
+    })
+    .then(() => {
       setSuccess(true);
       setTimeout(() => navigate('/dashboard'), 2000);
+    })
+    .catch(err => {
+      console.error(err);
+      alert('Failed to book appointment. Please try again.');
     });
   };
 
@@ -452,108 +478,249 @@ const BookingPage = () => {
   );
 };
 
+const TrackingMap = () => {
+  const [position, setPosition] = useState({ x: 10, y: 10 });
+  const [eta, setEta] = useState(7);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setPosition(prev => {
+        const nextX = prev.x + (80 - prev.x) * 0.05;
+        const nextY = prev.y + (80 - prev.y) * 0.05;
+        return { x: nextX, y: nextY };
+      });
+      setEta(prev => (prev > 1 ? prev - 0.1 : 1));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div className="relative h-80 bg-slate-100 dark:bg-slate-900 rounded-3xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-inner">
+      {/* Grid Background */}
+      <div className="absolute inset-0 opacity-10">
+        <div className="w-full h-full bg-[radial-gradient(circle,rgba(0,0,0,0.2)_1px,transparent_1px)] bg-[size:30px_30px]" />
+      </div>
+      
+      {/* Simulated Roads */}
+      <div className="absolute inset-0">
+        <div className="absolute top-1/2 left-0 w-full h-4 bg-slate-200 dark:bg-slate-800 -translate-y-1/2" />
+        <div className="absolute top-0 left-1/2 w-4 h-full bg-slate-200 dark:bg-slate-800 -translate-x-1/2" />
+        <div className="absolute top-1/4 left-0 w-full h-2 bg-slate-200 dark:bg-slate-800 opacity-50" />
+        <div className="absolute top-0 left-3/4 w-2 h-full bg-slate-200 dark:bg-slate-800 opacity-50" />
+      </div>
+
+      {/* Destination (User) */}
+      <motion.div 
+        initial={{ scale: 0 }}
+        animate={{ scale: 1 }}
+        className="absolute top-[80%] left-[80%] -translate-x-1/2 -translate-y-1/2 z-10"
+      >
+        <div className="relative">
+          <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[10px] px-2 py-1 rounded-md whitespace-nowrap font-bold shadow-lg">
+            YOU ARE HERE
+            <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-blue-600 rotate-45" />
+          </div>
+          <div className="w-6 h-6 bg-blue-600 rounded-full border-4 border-white shadow-lg animate-pulse" />
+        </div>
+      </motion.div>
+
+      {/* Ambulance Marker */}
+      <motion.div 
+        animate={{ left: `${position.x}%`, top: `${position.y}%` }}
+        transition={{ type: "spring", stiffness: 50, damping: 20 }}
+        className="absolute z-20 -translate-x-1/2 -translate-y-1/2"
+      >
+        <div className="relative">
+          <div className="absolute -top-14 left-1/2 -translate-x-1/2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-2 rounded-xl shadow-xl flex items-center space-x-2 whitespace-nowrap">
+            <div className="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center">
+              <Ambulance className="w-5 h-5 text-red-600" />
+            </div>
+            <div>
+              <div className="text-[10px] text-slate-500 font-bold uppercase leading-none">Arriving in</div>
+              <div className="text-sm font-black text-slate-900 dark:text-white leading-none mt-1">{Math.ceil(eta)} mins</div>
+            </div>
+            <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-white dark:bg-slate-800 border-r border-b border-slate-200 dark:border-slate-700 rotate-45" />
+          </div>
+          <div className="bg-red-600 p-2 rounded-xl shadow-2xl shadow-red-600/40 text-white">
+            <Ambulance className="w-6 h-6" />
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Map Controls (Visual Only) */}
+      <div className="absolute bottom-4 right-4 flex flex-col space-y-2">
+        <button className="w-8 h-8 bg-white dark:bg-slate-800 rounded-lg shadow-md flex items-center justify-center text-slate-600 dark:text-slate-300 font-bold">+</button>
+        <button className="w-8 h-8 bg-white dark:bg-slate-800 rounded-lg shadow-md flex items-center justify-center text-slate-600 dark:text-slate-300 font-bold">-</button>
+      </div>
+    </div>
+  );
+};
+
 const EmergencyPage = () => {
-  const [requesting, setRequesting] = useState(false);
-  const [status, setStatus] = useState<'idle' | 'requesting' | 'dispatched'>('idle');
+  const [status, setStatus] = useState<'idle' | 'requesting' | 'dispatched' | 'on-way' | 'arrived'>('idle');
+  const [progress, setProgress] = useState(0);
 
   const handleEmergency = () => {
-    setRequesting(true);
     setStatus('requesting');
+    setProgress(20);
     
-    // Simulate API call
     setTimeout(() => {
       setStatus('dispatched');
-      setRequesting(false);
+      setProgress(50);
     }, 2000);
+
+    setTimeout(() => {
+      setStatus('on-way');
+      setProgress(80);
+    }, 5000);
   };
+
+  const steps = [
+    { id: 'requesting', label: 'Request Received', icon: Bell },
+    { id: 'dispatched', label: 'Ambulance Assigned', icon: Shield },
+    { id: 'on-way', label: 'On the Way', icon: Ambulance },
+    { id: 'arrived', label: 'Arrived', icon: MapPin },
+  ];
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-12">
-      <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl border-2 border-red-100 dark:border-red-900/30 overflow-hidden">
-        <div className="bg-red-600 p-10 text-center text-white">
-          <Ambulance className="w-16 h-16 mx-auto mb-6 animate-bounce" />
-          <h1 className="text-4xl font-extrabold tracking-tight">Emergency Ambulance</h1>
-          <p className="mt-2 text-xl opacity-90 font-medium">One-click rapid response service</p>
-        </div>
-
-        <div className="p-10 space-y-10">
-          {status === 'idle' && (
-            <div className="text-center space-y-8">
-              <p className="text-lg text-slate-600 dark:text-slate-400 max-w-lg mx-auto">
-                Press the button below to request the nearest available ambulance to your current location.
-              </p>
-              <button 
-                onClick={handleEmergency}
-                className="w-64 h-64 bg-red-600 text-white rounded-full text-2xl font-black shadow-2xl shadow-red-600/40 hover:bg-red-700 transition-all hover:scale-105 active:scale-95 flex flex-col items-center justify-center space-y-2 border-8 border-red-100 dark:border-red-900/20"
+      <div className="bg-white dark:bg-slate-800 rounded-[2.5rem] shadow-2xl border border-slate-100 dark:border-slate-700 overflow-hidden">
+        {status === 'idle' ? (
+          <>
+            <div className="bg-red-600 p-12 text-center text-white relative overflow-hidden">
+              <div className="absolute inset-0 opacity-10">
+                <div className="w-full h-full bg-[radial-gradient(circle,rgba(255,255,255,0.2)_1px,transparent_1px)] bg-[size:20px_20px]" />
+              </div>
+              <motion.div 
+                animate={{ scale: [1, 1.1, 1] }}
+                transition={{ repeat: Infinity, duration: 2 }}
+                className="w-20 h-20 bg-white/20 backdrop-blur-md rounded-3xl flex items-center justify-center mx-auto mb-6"
               >
-                <span>SOS</span>
-                <span className="text-sm font-bold opacity-80">TAP TO CALL</span>
-              </button>
-              <div className="flex items-center justify-center space-x-4 text-slate-500 dark:text-slate-400">
-                <Shield className="w-5 h-5 text-green-500" />
-                <span className="text-sm font-medium">Your location is being tracked for emergency services</span>
+                <Ambulance className="w-10 h-10 text-white" />
+              </motion.div>
+              <h1 className="text-4xl font-black tracking-tight">Emergency Help</h1>
+              <p className="mt-2 text-lg opacity-90 font-medium">Instant medical response at your location</p>
+            </div>
+
+            <div className="p-12 text-center space-y-10">
+              <p className="text-lg text-slate-600 dark:text-slate-400 max-w-lg mx-auto leading-relaxed">
+                Need immediate medical assistance? Press the SOS button to dispatch the nearest ambulance.
+              </p>
+              
+              <div className="relative flex justify-center">
+                <motion.div 
+                  animate={{ scale: [1, 1.2, 1], opacity: [0.5, 0.2, 0.5] }}
+                  transition={{ repeat: Infinity, duration: 1.5 }}
+                  className="absolute inset-0 bg-red-600 rounded-full blur-3xl opacity-20"
+                />
+                <button 
+                  onClick={handleEmergency}
+                  className="relative w-64 h-64 bg-red-600 text-white rounded-full text-3xl font-black shadow-[0_20px_50px_rgba(220,38,38,0.4)] hover:bg-red-700 transition-all hover:scale-105 active:scale-95 flex flex-col items-center justify-center space-y-2 border-[12px] border-red-50 dark:border-red-900/20 group"
+                >
+                  <span className="group-hover:tracking-widest transition-all">SOS</span>
+                  <span className="text-xs font-bold opacity-70 tracking-widest uppercase">Tap to Call</span>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                {[
+                  { label: '24/7 Service', icon: Clock },
+                  { label: 'Live Tracking', icon: MapPin },
+                  { label: 'Expert Staff', icon: Shield },
+                ].map((item, i) => (
+                  <div key={i} className="p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl space-y-2">
+                    <item.icon className="w-5 h-5 text-red-600 mx-auto" />
+                    <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{item.label}</div>
+                  </div>
+                ))}
               </div>
             </div>
-          )}
-
-          {status === 'requesting' && (
-            <div className="text-center py-20 space-y-6">
-              <div className="w-20 h-20 border-4 border-red-600 border-t-transparent rounded-full animate-spin mx-auto" />
-              <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Locating Nearest Ambulance...</h2>
-              <p className="text-slate-600 dark:text-slate-400">Please stay on this page. We are connecting you with the dispatch team.</p>
+          </>
+        ) : (
+          <div className="p-8 space-y-8">
+            {/* Header with Status */}
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-black text-slate-900 dark:text-white">Tracking Ambulance</h2>
+                <p className="text-slate-500 font-medium">Request ID: #AMB-9021</p>
+              </div>
+              <div className="text-right">
+                <div className="text-3xl font-black text-red-600">7 MINS</div>
+                <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">Estimated Arrival</div>
+              </div>
             </div>
-          )}
 
-          {status === 'dispatched' && (
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="space-y-8"
-            >
-              <div className="p-6 bg-green-50 dark:bg-green-900/20 rounded-2xl border border-green-100 dark:border-green-900/30 flex items-center space-x-4">
-                <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center text-white">
-                  <Bell className="w-6 h-6" />
+            {/* Progress Tracker */}
+            <div className="relative pt-4 pb-8">
+              <div className="absolute top-8 left-0 w-full h-1 bg-slate-100 dark:bg-slate-800 rounded-full">
+                <motion.div 
+                  initial={{ width: 0 }}
+                  animate={{ width: `${progress}%` }}
+                  className="h-full bg-red-600 rounded-full shadow-[0_0_10px_rgba(220,38,38,0.5)]"
+                />
+              </div>
+              <div className="relative flex justify-between">
+                {steps.map((step, i) => {
+                  const isActive = status === step.id || (i < steps.findIndex(s => s.id === status));
+                  const isCurrent = status === step.id;
+                  return (
+                    <div key={step.id} className="flex flex-col items-center space-y-3">
+                      <div className={cn(
+                        "w-10 h-10 rounded-full flex items-center justify-center transition-all duration-500 z-10",
+                        isActive ? "bg-red-600 text-white shadow-lg" : "bg-slate-100 dark:bg-slate-800 text-slate-400",
+                        isCurrent && "ring-4 ring-red-100 dark:ring-red-900/30 scale-110"
+                      )}>
+                        <step.icon className="w-5 h-5" />
+                      </div>
+                      <span className={cn(
+                        "text-[10px] font-bold uppercase tracking-wider text-center max-w-[60px]",
+                        isActive ? "text-red-600" : "text-slate-400"
+                      )}>
+                        {step.label}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Live Map */}
+            <TrackingMap />
+
+            {/* Driver Info Card */}
+            <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xl flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <div className="relative">
+                  <img src="https://i.pravatar.cc/150?u=driver" alt="Driver" className="w-14 h-14 rounded-2xl object-cover" referrerPolicy="no-referrer" />
+                  <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 border-2 border-white dark:border-slate-900 rounded-full" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-green-800 dark:text-green-300">Ambulance Dispatched!</h3>
-                  <p className="text-green-700 dark:text-green-400 text-sm">ETA: 7 Minutes • ID: AMB-4029</p>
-                </div>
-              </div>
-
-              <div className="h-64 bg-slate-100 dark:bg-slate-900 rounded-3xl relative overflow-hidden flex items-center justify-center">
-                <div className="absolute inset-0 opacity-20">
-                  <div className="w-full h-full bg-[radial-gradient(circle,rgba(255,255,255,0.1)_1px,transparent_1px)] bg-[size:20px_20px]" />
-                </div>
-                <div className="relative text-center space-y-4">
-                  <div className="flex items-center justify-center space-x-8">
-                    <div className="w-4 h-4 bg-blue-500 rounded-full animate-ping" />
-                    <Ambulance className="w-12 h-12 text-red-600" />
-                    <div className="w-4 h-4 bg-red-500 rounded-full animate-ping" />
+                  <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Your Driver</div>
+                  <h4 className="text-lg font-bold text-slate-900 dark:text-white leading-none">Suresh Raina</h4>
+                  <div className="flex items-center mt-1 text-yellow-500">
+                    <Star className="w-3 h-3 fill-current" />
+                    <span className="text-xs font-bold ml-1">4.9 (2.4k trips)</span>
                   </div>
-                  <p className="text-sm font-bold text-slate-500 dark:text-slate-400 tracking-widest uppercase">Live Tracking Simulation</p>
                 </div>
               </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl text-center">
-                  <div className="text-xs text-slate-500 uppercase font-bold mb-1">Driver</div>
-                  <div className="font-bold dark:text-white">Suresh Raina</div>
-                </div>
-                <div className="p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl text-center">
-                  <div className="text-xs text-slate-500 uppercase font-bold mb-1">Contact</div>
-                  <div className="font-bold text-blue-600">+91 98765 43210</div>
-                </div>
+              <div className="flex space-x-3">
+                <button className="w-12 h-12 bg-blue-50 dark:bg-blue-900/20 text-blue-600 rounded-2xl flex items-center justify-center hover:bg-blue-100 transition-all">
+                  <MessageSquare className="w-5 h-5" />
+                </button>
+                <button className="w-12 h-12 bg-green-500 text-white rounded-2xl flex items-center justify-center hover:bg-green-600 transition-all shadow-lg shadow-green-500/20">
+                  <Phone className="w-5 h-5" />
+                </button>
               </div>
+            </div>
 
-              <button 
-                onClick={() => setStatus('idle')}
-                className="w-full py-4 text-slate-500 dark:text-slate-400 font-bold hover:text-red-600 transition-colors"
-              >
-                Cancel Request
-              </button>
-            </motion.div>
-          )}
-        </div>
+            <button 
+              onClick={() => setStatus('idle')}
+              className="w-full py-4 text-slate-400 dark:text-slate-500 font-bold text-sm hover:text-red-600 transition-colors"
+            >
+              Cancel Emergency Request
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -565,9 +732,16 @@ const DashboardPage = () => {
 
   useEffect(() => {
     fetch('/api/appointments')
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error('Failed to fetch appointments');
+        return res.json();
+      })
       .then(data => {
         setAppointments(data);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error(err);
         setLoading(false);
       });
   }, []);
@@ -845,8 +1019,15 @@ const AdminPanel = () => {
   const [ambulances, setAmbulances] = useState<any[]>([]);
 
   useEffect(() => {
-    fetch('/api/appointments').then(res => res.json()).then(setAppointments);
-    fetch('/api/ambulance').then(res => res.json()).then(setAmbulances);
+    fetch('/api/appointments')
+      .then(res => res.json())
+      .then(setAppointments)
+      .catch(err => console.error('Admin Appointments Error:', err));
+      
+    fetch('/api/ambulance')
+      .then(res => res.json())
+      .then(setAmbulances)
+      .catch(err => console.error('Admin Ambulance Error:', err));
   }, []);
 
   return (
@@ -914,41 +1095,115 @@ const AdminPanel = () => {
   );
 };
 
-const ContactPage = () => (
-  <div className="max-w-4xl mx-auto px-4 py-20 space-y-12">
-    <div className="text-center space-y-4">
-      <h1 className="text-4xl font-bold">Get in Touch</h1>
-      <p className="text-slate-600 dark:text-slate-400">We're here to help you 24/7 with any medical queries or platform support.</p>
-    </div>
-    <div className="grid md:grid-cols-2 gap-12">
-      <div className="space-y-8">
-        <div className="flex items-start space-x-4">
-          <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center text-blue-600 shrink-0">
-            <Phone className="w-6 h-6" />
-          </div>
-          <div>
-            <h4 className="font-bold">Call Us</h4>
-            <p className="text-slate-600 dark:text-slate-400">+91 1800-MED-HELP</p>
-            <p className="text-slate-600 dark:text-slate-400">+91 98765 43210</p>
-          </div>
-        </div>
-        <div className="flex items-start space-x-4">
-          <div className="w-12 h-12 bg-green-100 rounded-2xl flex items-center justify-center text-green-600 shrink-0">
-            <MessageSquare className="w-6 h-6" />
-          </div>
-          <div>
-            <h4 className="font-bold">Email Support</h4>
-            <p className="text-slate-600 dark:text-slate-400">support@medquick.com</p>
-            <p className="text-slate-600 dark:text-slate-400">help@medquick.com</p>
-          </div>
-        </div>
+const ContactPage = () => {
+  const [formData, setFormData] = useState({ name: '', email: '', message: '' });
+  const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setStatus('sending');
+    try {
+      const res = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      });
+      if (!res.ok) throw new Error('Failed to send message');
+      setStatus('sent');
+      setFormData({ name: '', email: '', message: '' });
+    } catch (err) {
+      console.error(err);
+      setStatus('error');
+    }
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto px-4 py-20 space-y-12">
+      <div className="text-center space-y-4">
+        <h1 className="text-4xl font-bold">Get in Touch</h1>
+        <p className="text-slate-600 dark:text-slate-400">We're here to help you 24/7 with any medical queries or platform support.</p>
       </div>
-      <form className="space-y-4 bg-white dark:bg-slate-800 p-8 rounded-3xl shadow-lg border border-slate-100 dark:border-slate-700">
-        <input type="text" placeholder="Your Name" className="w-full p-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" />
-        <input type="email" placeholder="Your Email" className="w-full p-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" />
-        <textarea placeholder="How can we help?" rows={4} className="w-full p-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500"></textarea>
-        <button className="w-full py-4 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all">Send Message</button>
-      </form>
+      <div className="grid md:grid-cols-2 gap-12">
+        <div className="space-y-8">
+          <div className="flex items-start space-x-4">
+            <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center text-blue-600 shrink-0">
+              <Phone className="w-6 h-6" />
+            </div>
+            <div>
+              <h4 className="font-bold">Call Us</h4>
+              <p className="text-slate-600 dark:text-slate-400">+91 1800-MED-HELP</p>
+              <p className="text-slate-600 dark:text-slate-400">+91 98765 43210</p>
+            </div>
+          </div>
+          <div className="flex items-start space-x-4">
+            <div className="w-12 h-12 bg-green-100 rounded-2xl flex items-center justify-center text-green-600 shrink-0">
+              <MessageSquare className="w-6 h-6" />
+            </div>
+            <div>
+              <h4 className="font-bold">Email Support</h4>
+              <p className="text-slate-600 dark:text-slate-400">support@medquick.com</p>
+              <p className="text-slate-600 dark:text-slate-400">help@medquick.com</p>
+            </div>
+          </div>
+        </div>
+        
+        {status === 'sent' ? (
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-green-50 dark:bg-green-900/20 p-10 rounded-3xl border border-green-100 dark:border-green-900/30 text-center space-y-4"
+          >
+            <div className="w-16 h-16 bg-green-500 text-white rounded-full flex items-center justify-center mx-auto">
+              <Check className="w-8 h-8" />
+            </div>
+            <h3 className="text-2xl font-bold text-green-800 dark:text-green-300">Message Sent!</h3>
+            <p className="text-green-700 dark:text-green-400">We've received your query and will get back to you within 24 hours.</p>
+            <button 
+              onClick={() => setStatus('idle')}
+              className="text-green-600 font-bold hover:underline"
+            >
+              Send another message
+            </button>
+          </motion.div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4 bg-white dark:bg-slate-800 p-8 rounded-3xl shadow-lg border border-slate-100 dark:border-slate-700">
+            <input 
+              type="text" 
+              placeholder="Your Name" 
+              required
+              className="w-full p-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            />
+            <input 
+              type="email" 
+              placeholder="Your Email" 
+              required
+              className="w-full p-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500"
+              value={formData.email}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+            />
+            <textarea 
+              placeholder="How can we help?" 
+              rows={4} 
+              required
+              className="w-full p-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500"
+              value={formData.message}
+              onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+            ></textarea>
+            <button 
+              type="submit"
+              disabled={status === 'sending'}
+              className="w-full py-4 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all disabled:opacity-50"
+            >
+              {status === 'sending' ? 'Sending...' : 'Send Message'}
+            </button>
+            {status === 'error' && (
+              <p className="text-red-500 text-sm text-center">Failed to send message. Please try again.</p>
+            )}
+          </form>
+        )}
+      </div>
     </div>
-  </div>
-);
+  );
+};

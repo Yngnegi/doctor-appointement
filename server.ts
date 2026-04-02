@@ -14,17 +14,27 @@ async function startServer() {
 
   // Mock Data
   const doctors = [
-    { id: "1", name: "Dr. Sarah Johnson", specialty: "Cardiologist", experience: 12, fees: 800, rating: 4.8, location: "New Delhi", image: "https://picsum.photos/seed/doc1/400/400" },
-    { id: "2", name: "Dr. Rajesh Kumar", specialty: "Dentist", experience: 8, fees: 500, rating: 4.5, location: "Mumbai", image: "https://picsum.photos/seed/doc2/400/400" },
-    { id: "3", name: "Dr. Anita Desai", specialty: "Dermatologist", experience: 10, fees: 600, rating: 4.7, location: "Bangalore", image: "https://picsum.photos/seed/doc3/400/400" },
-    { id: "4", name: "Dr. Vikram Singh", specialty: "Neurologist", experience: 15, fees: 1200, rating: 4.9, location: "Chennai", image: "https://picsum.photos/seed/doc4/400/400" },
-    { id: "5", name: "Dr. Priya Sharma", specialty: "Pediatrician", experience: 7, fees: 450, rating: 4.6, location: "Hyderabad", image: "https://picsum.photos/seed/doc5/400/400" },
+    { id: "1", name: "Dr. Sarah Johnson", specialty: "Cardiologist", experience: 12, fees: 800, rating: 4.8, location: "New Delhi", image: "https://images.unsplash.com/photo-1594824476967-48c8b964273f?w=400&h=400&fit=crop" },
+    { id: "2", name: "Dr. Rajesh Kumar", specialty: "Dentist", experience: 8, fees: 500, rating: 4.5, location: "Mumbai", image: "https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=400&h=400&fit=crop" },
+    { id: "3", name: "Dr. Anita Desai", specialty: "Dermatologist", experience: 10, fees: 600, rating: 4.7, location: "Bangalore", image: "https://images.unsplash.com/photo-1559839734-2b71f1536783?w=400&h=400&fit=crop" },
+    { id: "4", name: "Dr. Vikram Singh", specialty: "Neurologist", experience: 15, fees: 1200, rating: 4.9, location: "Chennai", image: "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=400&h=400&fit=crop" },
+    { id: "5", name: "Dr. Priya Sharma", specialty: "Pediatrician", experience: 7, fees: 450, rating: 4.6, location: "Hyderabad", image: "https://images.unsplash.com/photo-1591608971362-f08b2a75731a?w=400&h=400&fit=crop" },
+    { id: "6", name: "Dr. Michael Chen", specialty: "Orthopedic", experience: 14, fees: 900, rating: 4.8, location: "Pune", image: "https://images.unsplash.com/photo-1537368910025-700350fe46c7?w=400&h=400&fit=crop" },
+    { id: "7", name: "Dr. Aisha Khan", specialty: "Gynecologist", experience: 11, fees: 700, rating: 4.7, location: "Kolkata", image: "https://images.unsplash.com/photo-1651008376811-b90baee60c1f?w=400&h=400&fit=crop" },
+    { id: "8", name: "Dr. David Miller", specialty: "Ophthalmologist", experience: 9, fees: 550, rating: 4.5, location: "Ahmedabad", image: "https://images.unsplash.com/photo-1606811841689-23dfddce3e95?w=400&h=400&fit=crop" },
   ];
 
   let appointments = [];
   let ambulanceRequests = [];
+  let contactMessages = [];
 
   // API Routes
+  app.post("/api/contact", (req, res) => {
+    const message = { id: Date.now().toString(), ...req.body, status: "Received" };
+    contactMessages.push(message);
+    res.status(201).json({ message: "Message received successfully" });
+  });
+
   app.get("/api/doctors", (req, res) => {
     res.json(doctors);
   });
